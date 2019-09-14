@@ -63,7 +63,7 @@ class ModelBase(object):
         self.src_data_generator = None
         self.dst_data_generator = None
         self.debug = debug
-        self.is_training_mode = (training_data_src_path is not None and training_data_dst_path is not None)
+        self.is_training_mode = (training_data_src_path is not None and training_data_dst_path is not None) #todo
 
         self.iter = 0
         self.options = {}
@@ -412,40 +412,60 @@ class ModelBase(object):
                             cv2_imwrite (filepath, img )
 
     def load_weights_safe(self, model_filename_list, optimizer_filename_list=[]):
+        exec(nnlib.code_import_all, locals(), globals())
+        
         loaded = []
         not_loaded = []
         for mf in model_filename_list:
             model, filename = mf
             filename = self.get_strpath_storage_for_file(filename)
+            
             if Path(filename).exists():
                 loaded += [ mf ]
-                model.load_weights(filename)
+                
+                if issubclass(model.__class__, keras.optimizers.Optimizer):
+                    opt = model
+  
+                    try:
+                        with open(filename, "rb") as f:
+                            fd = pickle.loads(f.read())
+                        
+                        weights = fd.get('weights', None)
+                        if weights is not None:
+                            opt.set_weights(weights)
+                            
+                    except Exception as e:
+                        print ("Unable to load ", filename)
+                        
+                else:
+                    model.load_weights(filename)
             else:
                 not_loaded += [ mf ]
                 
-        if len(optimizer_filename_list) != 0:
-            opt_filename = self.get_strpath_storage_for_file('opt.h5')
-            if Path(opt_filename).exists():
-                try:
-                    with open(opt_filename, "rb") as f:
-                        d = pickle.loads(f.read())
-
-                    for x in optimizer_filename_list:
-                        opt, filename = x
-                        if filename in d:
-                            weights = d[filename].get('weights', None)
-                            if weights:
-                                opt.set_weights(weights)
-                                print("set ok")
-                except Exception as e:
-                    print ("Unable to load ", opt_filename)
-                    
+                   
         return loaded, not_loaded
 
     def save_weights_safe(self, model_filename_list):
+        exec(nnlib.code_import_all, locals(), globals())
+        
         for model, filename in model_filename_list:
-            filename = self.get_strpath_storage_for_file(filename)
-            model.save_weights( filename + '.tmp' )
+            filename = self.get_strpath_storage_for_file(filename) + '.tmp'
+
+            if issubclass(model.__class__, keras.optimizers.Optimizer):
+                opt = model
+                
+                try:                    
+                    fd = {}
+                    symbolic_weights = getattr(opt, 'weights')
+                    if symbolic_weights:
+                        fd['weights'] = self.K.batch_get_value(symbolic_weights)
+
+                    with open(filename, 'wb') as f:
+                        f.write( pickle.dumps(fd) )
+                except Exception as e:
+                    print ("Unable to save ", filename)                
+            else:                
+                model.save_weights( filename)
 
         rename_list = model_filename_list
 

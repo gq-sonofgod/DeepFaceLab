@@ -576,6 +576,8 @@ class ConvertSubprocessor(Subprocessor):
 def main (args, device_args):
     io.log_info ("Running converter.\r\n")
 
+    training_data_src_dir = args.get('training_data_src_dir', None)
+    training_data_src_path = Path(training_data_src_dir) if training_data_src_dir is not None else None
     aligned_dir = args.get('aligned_dir', None)
     avaperator_aligned_dir = args.get('avaperator_aligned_dir', None)
 
@@ -598,7 +600,7 @@ def main (args, device_args):
         is_interactive = io.input_bool ("Use interactive converter? (y/n skip:y) : ", True) if not io.is_colab() else False
 
         import models
-        model = models.import_model( args['model_name'] )(model_path, device_args=device_args)
+        model = models.import_model( args['model_name'], training_data_src_path=training_data_src_path )(model_path, device_args=device_args)
         converter_session_filepath = model.get_strpath_storage_for_file('converter_session.dat')        
         predictor_func, predictor_input_shape, cfg = model.get_ConverterConfig()
 
