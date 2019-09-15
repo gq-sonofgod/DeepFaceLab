@@ -33,11 +33,11 @@ class FUNITModel(ModelBase):
     def onInitialize(self, batch_size=-1, **in_options):
         exec(nnlib.code_import_all, locals(), globals())
         self.set_vram_batch_requirements({4:16})
-        
+
         resolution = self.options['resolution']
-           
+
         person_id_max_count = SampleGeneratorFace.get_person_id_max_count(self.training_data_src_path)
-        
+
         bgr_shape = (resolution, resolution, 3)
         mask_shape = (resolution, resolution, 1)
         bgrm_shape = (resolution, resolution, 4)
@@ -80,35 +80,35 @@ class FUNITModel(ModelBase):
         xt = self.decoder ([c_xa,s_xb])
 
         xr_one = self.decoder ([c_xa,s_xa_one])
-        
-                
+
+
         d_xr, d_xr_feat = self.dis(xr)
         d_xt, d_xt_feat = self.dis(xt)
 
         d_xa, d_xa_feat = self.dis(xa)
         d_xb, d_xb_feat = self.dis(xb)
-        
+
         def dis_gather(x,l):
             h,w,c = K.int_shape(x)[1:]
             out = []
             for i in range(self.batch_size):
                 out += [  x[i:i+1,:,:, l[i,0]] ]
-        
+
             return K.sum(out, axis=[1,2,3]) / (h*w)
-            
+
         d_xr_la = dis_gather(d_xr, la)
         d_xt_lb = dis_gather(d_xt, lb)
         d_xa_la = dis_gather(d_xa, la)
         d_xb_lb = dis_gather(d_xb, lb)
-        
+
         G_c_rec = K.mean(K.abs(K.mean(d_xr_feat, axis=[1,2]) - K.mean(d_xa_feat, axis=[1,2])), axis=1) # * 1.0
         G_m_rec = K.mean(K.abs(K.mean(d_xt_feat, axis=[1,2]) - K.mean(d_xb_feat, axis=[1,2])), axis=1) # * 1.0
         G_x_rec = 0.1 * K.mean(K.abs(xr-xa), axis=[1,2,3]) #0.1 def
-        
+
         G_d_xr_la = -d_xr_la*0.5
         G_d_xt_lb = -d_xt_lb*0.5
-        
-        
+
+
 
         #l_adv = 0.5* ( -K.mean(d_xr_la) - K.mean(d_xt_lb) )
         #G_loss = 1 * l_adv + G_x_rec + (G_c_rec+G_m_rec)
@@ -116,10 +116,10 @@ class FUNITModel(ModelBase):
         G_weights = self.enc_class_model.trainable_weights + self.enc_content.trainable_weights + self.decoder.trainable_weights
         ######
 
-        
-        
-        D_real = K.relu(1.0 - d_xb_lb) #1.0 * 
-        D_fake = K.relu(1.0 + d_xt_lb) #1.0 * 
+
+
+        D_real = K.relu(1.0 - d_xb_lb) #1.0 *
+        D_fake = K.relu(1.0 + d_xt_lb) #1.0 *
 
         l_reg = 10 * K.sum( K.gradients( d_xb_lb, xb )[0] ** 2, axis=[1,2,3] ) #/ self.batch_size )
 
@@ -147,17 +147,17 @@ class FUNITModel(ModelBase):
                             w = layer.weights[0]
                             K.set_value( w, K.get_value(initer(K.int_shape(w)))  )
             """
-                        
+
 
         #import code
         #code.interact(local=dict(globals(), **locals()))
 
-        
-                
-        
+
+
+
         if self.is_training_mode:
             t = SampleProcessor.Types
-            face_type = t.FACE_TYPE_FULL     
+            face_type = t.FACE_TYPE_FULL
 
             output_sample_types=[ {'types': (t.IMG_TRANSFORMED, face_type, t.MODE_BGR), 'resolution':128, 'normalize_tanh':True} ]
 
@@ -165,34 +165,38 @@ class FUNITModel(ModelBase):
                         SampleGeneratorFace(self.training_data_src_path, debug=self.is_debug(), batch_size=self.batch_size,
                             sample_process_options=SampleProcessor.Options(random_flip=True),
                             output_sample_types=output_sample_types, person_id_mode=True ),
-                            
+
                         SampleGeneratorFace(self.training_data_src_path, debug=self.is_debug(), batch_size=self.batch_size,
                             sample_process_options=SampleProcessor.Options(random_flip=True),
                             output_sample_types=output_sample_types, person_id_mode=True ),
 
                         SampleGeneratorFace(self.training_data_dst_path, debug=self.is_debug(), batch_size=self.batch_size,
                             sample_process_options=SampleProcessor.Options(random_flip=True),
-                            output_sample_types=output_sample_types )
+                            output_sample_types=output_sample_types, person_id_mode=True ),
+
+                        SampleGeneratorFace(self.training_data_dst_path, debug=self.is_debug(), batch_size=self.batch_size,
+                            sample_process_options=SampleProcessor.Options(random_flip=True),
+                            output_sample_types=output_sample_types, person_id_mode=True ),
                     ])
-                    
-        else:    
+
+        else:
             #self.G_convert = K.function([real_B0],[fake_A0])
             t = SampleProcessor.Types
             face_type = t.FACE_TYPE_FULL
-        
+
             generator = SampleGeneratorFace(self.training_data_src_path, batch_size=1,
                                 sample_process_options=SampleProcessor.Options(),
                                 output_sample_types=[ {'types': (t.IMG_SOURCE, face_type, t.MODE_BGR), 'resolution':resolution, 'normalize_tanh':True} ] )
-            
+
             io.log_info("Calculating average src face style...")
             codes = []
             for i in range(generator.get_total_sample_count()):
                 codes += self.get_average_class_code( generator.generate_next() )
-                
-            self.average_class_code = np.mean ( np.array(codes), axis=0 )[None,...]
-            
 
-            
+            self.average_class_code = np.mean ( np.array(codes), axis=0 )[None,...]
+
+
+
     #override
     def get_model_filename_list(self):
         return [[self.enc_class_model, 'enc_class_model.h5'],
@@ -211,7 +215,7 @@ class FUNITModel(ModelBase):
     def onTrainOneIter(self, generators_samples, generators_list):
         xa,la = generators_samples[0]
         xb,lb = generators_samples[1]
-        
+
         D_loss, = self.D_train ([xa,la,xb,lb])
         G_loss, = self.G_train ([xa,la,xb,lb])
 
@@ -222,28 +226,40 @@ class FUNITModel(ModelBase):
         xa  = generators_samples[0][0]
         xb  = generators_samples[1][0]
         ta  = generators_samples[2][0]
+        tb  = generators_samples[3][0]
 
-        view_samples = min(4, xa.shape[0])
+        view_samples = min(2, xa.shape[0])
 
-        s_xa_mean = self.get_average_class_code([xa])[0][None,...]
-        s_xb_mean = self.get_average_class_code([xb])[0][None,...]
-        s_ta_mean = self.get_average_class_code([ta])[0][None,...]
-
-        lines = []
+        lines_train = []
+        lines_test = []
 
         for i in range(view_samples):
-            xaxa = np.clip (self.G_convert  ([ xa[i:i+1], s_xa_mean  ] )[0][0] / 2 + 0.5, 0, 1)
-            xbxb = np.clip (self.G_convert  ([ xb[i:i+1], s_xb_mean  ] )[0][0] / 2 + 0.5, 0, 1)
-            xbxa = np.clip (self.G_convert  ([ xb[i:i+1], s_xa_mean  ] )[0][0] / 2 + 0.5, 0, 1)            
 
-            tata = np.clip (self.G_convert  ([ ta[i:i+1], s_ta_mean  ] )[0][0] / 2 + 0.5, 0, 1)  
-            taxa = np.clip (self.G_convert  ([ ta[i:i+1], s_xa_mean  ] )[0][0] / 2 + 0.5, 0, 1)  
-            taxb = np.clip (self.G_convert  ([ ta[i:i+1], s_xb_mean  ] )[0][0] / 2 + 0.5, 0, 1)    
-            
-            lines += [ np.concatenate( (xa[i] / 2 + 0.5, xaxa, xb[i] / 2 + 0.5, xbxb, xbxa, ta[i]/2+0.5, tata, taxa, taxb ), axis=1) ]
+            s_xa = self.get_average_class_code([ xa[i:i+1] ])[0][None,...]
+            s_xb = self.get_average_class_code([ xb[i:i+1] ])[0][None,...]
 
-        r = np.concatenate ( lines, axis=0 )
-        return [ ('DEV_FUNIT', r ) ]
+            s_ta = self.get_average_class_code([ ta[i:i+1] ])[0][None,...]
+            s_tb = self.get_average_class_code([ tb[i:i+1] ])[0][None,...]
+
+            xaxa = self.G_convert  ([ xa[i:i+1], s_xa  ] )[0][0]
+            xbxb = self.G_convert  ([ xb[i:i+1], s_xb  ] )[0][0]
+            xaxb = self.G_convert  ([ xa[i:i+1], s_xb  ] )[0][0]
+            xbxa = self.G_convert  ([ xb[i:i+1], s_xa  ] )[0][0]
+
+            tata = self.G_convert  ([ ta[i:i+1], s_ta  ] )[0][0]
+            tbtb = self.G_convert  ([ tb[i:i+1], s_tb  ] )[0][0]
+            tatb = self.G_convert  ([ ta[i:i+1], s_tb  ] )[0][0]
+            tbta = self.G_convert  ([ tb[i:i+1], s_ta  ] )[0][0]
+
+            line_train = [ xa[i], xaxa, xb[i], xbxb, xaxb, xbxa ]
+            line_test =  [ ta[i], tata, tb[i], tbtb, tatb, tbta ]
+
+            lines_train += [ np.concatenate([ np.clip(x/2+0.5,0,1) for x in line_train], axis=1) ]
+            lines_test  += [ np.concatenate([ np.clip(x/2+0.5,0,1) for x in line_test ], axis=1) ]
+
+        lines_train = np.concatenate ( lines_train, axis=0 )
+        lines_test = np.concatenate ( lines_test, axis=0 )
+        return [ ('TRAIN', lines_train ), ('TEST', lines_test) ]
 
     def predictor_func (self, face=None, dummy_predict=False):
         if dummy_predict:
@@ -331,18 +347,18 @@ class FUNITModel(ModelBase):
     @staticmethod
     def DecoderFlow(ups, n_res_blks=2,  nf_mlp=256, n_mlp_blks=2 ):
         exec (nnlib.import_all(), locals(), globals())
-        
-        
+
+
         class AdaptiveInstanceNormalization2D(KL.Layer):
             """
-            my own impl of adain. 
+            my own impl of adain.
             differents from NVLabs/FUNIT:
-            1) I moved two dense blocks inside this layer, 
+            1) I moved two dense blocks inside this layer,
                so we don't need to slice outter MLP block, just pass it inside.
                also size of dense blocks calculated automatically
             2) I don't use running_mean and running_var, because they are part of batchnormalization,
                but InstanceNormalization doesn't use them
-               
+
             """
             def __init__(self, axis=-1, epsilon=1e-3, **kwargs):
                 self.axis = axis
@@ -350,36 +366,36 @@ class FUNITModel(ModelBase):
                 super(AdaptiveInstanceNormalization2D, self).__init__(**kwargs)
 
             def build(self, input_shape):
-                self.input_spec = None                 
+                self.input_spec = None
                 x, mlp = input_shape
                 input_dim = units = x[-1]
-                
-                self.kernel1 = self.add_weight(shape=(input_dim, units), initializer='glorot_normal', name='kernel1')                                      
+
+                self.kernel1 = self.add_weight(shape=(input_dim, units), initializer='glorot_normal', name='kernel1')
                 self.bias1 = self.add_weight(shape=(units,), initializer='zeros', name='bias1')
-                self.kernel2 = self.add_weight(shape=(input_dim, units), initializer='glorot_normal', name='kernel2')                                      
-                self.bias2 = self.add_weight(shape=(units,), initializer='zeros', name='bias2')     
-                
-                                 
+                self.kernel2 = self.add_weight(shape=(input_dim, units), initializer='glorot_normal', name='kernel2')
+                self.bias2 = self.add_weight(shape=(units,), initializer='zeros', name='bias2')
+
+
                 self.built = True
 
             def call(self, inputs, training=None):
                 x, mlp = inputs
-                
-                gamma = K.dot(mlp, self.kernel1)        
+
+                gamma = K.dot(mlp, self.kernel1)
                 gamma = K.bias_add(gamma, self.bias1, data_format='channels_last')
-                
-                beta = K.dot(mlp, self.kernel2)        
+
+                beta = K.dot(mlp, self.kernel2)
                 beta = K.bias_add(beta, self.bias2, data_format='channels_last')
 
                 input_shape = K.int_shape(x)
-                
+
                 reduction_axes = list(range(len(input_shape)))
                 del reduction_axes[self.axis]
-                del reduction_axes[0]                
+                del reduction_axes[0]
 
                 broadcast_shape = [1] * len(input_shape)
                 broadcast_shape[self.axis] = input_shape[self.axis]
-                
+
                 mean = K.mean(x, reduction_axes, keepdims=True)
                 stddev = K.std(x, reduction_axes, keepdims=True) + self.epsilon
                 normed = (x - mean) / stddev
@@ -388,7 +404,7 @@ class FUNITModel(ModelBase):
                 normed += K.reshape(beta, [-1]+broadcast_shape[1:] )
 
                 return normed
-                
+
             def get_config(self):
                 config = {'axis': self.axis, 'epsilon': self.epsilon }
 
