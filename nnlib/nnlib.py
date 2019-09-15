@@ -95,7 +95,6 @@ dssim = nnlib.dssim
 
 PixelShuffler = nnlib.PixelShuffler
 SubpixelUpscaler = nnlib.SubpixelUpscaler
-AdaptiveInstanceNormalization2D = nnlib.AdaptiveInstanceNormalization2D
 Scale = nnlib.Scale
 BlurPool = nnlib.BlurPool
 SelfAttention = nnlib.SelfAttention
@@ -546,66 +545,6 @@ NLayerDiscriminator = nnlib.NLayerDiscriminator
                 return dict(list(base_config.items()) + list(config.items()))
         nnlib.Scale = Scale
 
-        class AdaptiveInstanceNormalization2D(KL.Layer):
-            def __init__(self, axis=-1, epsilon=1e-3, **kwargs):
-                self.axis = axis
-                self.epsilon = epsilon
-                super(AdaptiveInstanceNormalization2D, self).__init__(**kwargs)
-
-            def build(self, input_shape):
-                self.input_spec = None                 
-                x, mlp = input_shape
-                input_dim = units = x[-1]
-                
-                self.kernel1 = self.add_weight(shape=(input_dim, units), initializer='glorot_normal', name='kernel1')                                      
-                self.bias1 = self.add_weight(shape=(units,), initializer='zeros', name='bias1')
-                self.kernel2 = self.add_weight(shape=(input_dim, units), initializer='glorot_normal', name='kernel2')                                      
-                self.bias2 = self.add_weight(shape=(units,), initializer='zeros', name='bias2')     
-                
-                                 
-                self.built = True
-
-            def call(self, inputs, training=None):
-                x, mlp = inputs
-                
-                gamma = K.dot(mlp, self.kernel1)        
-                gamma = K.bias_add(gamma, self.bias1, data_format='channels_last')
-                
-                beta = K.dot(mlp, self.kernel2)        
-                beta = K.bias_add(beta, self.bias2, data_format='channels_last')
-
-                input_shape = K.int_shape(x)
-                
-                reduction_axes = list(range(len(input_shape)))
-                del reduction_axes[0]
-                del reduction_axes[self.axis]
-
-                broadcast_shape = [1] * len(input_shape)
-                broadcast_shape[self.axis] = input_shape[self.axis]
-                
-                mean = K.mean(x, reduction_axes, keepdims=True)
-                stddev = K.std(x, reduction_axes, keepdims=True) + self.epsilon
-                normed = (x - mean) / stddev
-                #import code
-                #code.interact(local=dict(globals(), **locals()))
-
-                normed *= K.reshape(gamma,[-1]+broadcast_shape[1:] )
-                normed += K.reshape(beta, [-1]+broadcast_shape[1:] )
-
-                return normed
-                
-            def get_config(self):
-                config = {'axis': self.axis, 'epsilon': self.epsilon }
-
-                base_config = super(AdaptiveInstanceNormalization2D, self).get_config()
-                return dict(list(base_config.items()) + list(config.items()))
-
-            def compute_output_shape(self, input_shape):
-                return input_shape
-
-        nnlib.AdaptiveInstanceNormalization2D = AdaptiveInstanceNormalization2D
-
-
         class SelfAttention(KL.Layer):
             def __init__(self, nc, squeeze_factor=8, **kwargs):
                 assert nc//squeeze_factor > 0, f"Input channels must be >= {squeeze_factor}, recieved nc={nc}"
@@ -642,7 +581,7 @@ NLayerDiscriminator = nnlib.NLayerDiscriminator
                 out = Add()([o, inp])
                 return out
         nnlib.SelfAttention = SelfAttention
-        
+
         class RMSprop(keras.optimizers.Optimizer):
             """RMSProp optimizer.
             It is recommended to leave the parameters of this optimizer
@@ -654,7 +593,7 @@ NLayerDiscriminator = nnlib.NLayerDiscriminator
             # References
                 - [rmsprop: Divide the gradient by a running average of its recent magnitude
                 ](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
-                
+
                 tf_cpu_mode: only for tensorflow backend
                               0 - default, no changes.
                               1 - allows to train x2 bigger network on same VRAM consuming RAM
@@ -665,7 +604,7 @@ NLayerDiscriminator = nnlib.NLayerDiscriminator
                 self.initial_decay = kwargs.pop('decay', 0.0)
                 self.epsilon = kwargs.pop('epsilon', K.epsilon())
                 self.tf_cpu_mode = tf_cpu_mode
-                
+
                 learning_rate = kwargs.pop('lr', learning_rate)
                 super(RMSprop, self).__init__(**kwargs)
                 with K.name_scope(self.__class__.__name__):
@@ -676,16 +615,16 @@ NLayerDiscriminator = nnlib.NLayerDiscriminator
 
             def get_updates(self, loss, params):
                 grads = self.get_gradients(loss, params)
-                
-                
+
+
                 e = K.tf.device("/cpu:0") if self.tf_cpu_mode > 0 else None
-                if e: e.__enter__()                
+                if e: e.__enter__()
                 accumulators = [K.zeros(K.int_shape(p),
                                 dtype=K.dtype(p),
                                 name='accumulator_' + str(i))
                                 for (i, p) in enumerate(params)]
                 if e: e.__exit__(None, None, None)
-                
+
                 self.weights = [self.iterations] + accumulators
                 self.updates = [K.update_add(self.iterations, 1)]
 
@@ -698,12 +637,12 @@ NLayerDiscriminator = nnlib.NLayerDiscriminator
                     # update accumulator
                     e = K.tf.device("/cpu:0") if self.tf_cpu_mode == 2 else None
                     if e: e.__enter__()
-                    new_a = self.rho * a + (1. - self.rho) * K.square(g)                    
+                    new_a = self.rho * a + (1. - self.rho) * K.square(g)
                     new_p = p - lr * g / (K.sqrt(new_a) + self.epsilon)
                     if e: e.__exit__(None, None, None)
-                    
+
                     self.updates.append(K.update(a, new_a))
-                    
+
                     # Apply constraints.
                     if getattr(p, 'constraint', None) is not None:
                         new_p = p.constraint(new_p)
@@ -728,7 +667,7 @@ NLayerDiscriminator = nnlib.NLayerDiscriminator
                 base_config = super(RMSprop, self).get_config()
                 return dict(list(base_config.items()) + list(config.items()))
         nnlib.RMSprop = RMSprop
-        
+
         class Adam(keras.optimizers.Optimizer):
             """Adam optimizer.
 
