@@ -227,23 +227,23 @@ class FUNITModel(ModelBase):
 
         s_xa_mean = self.get_average_class_code([xa])[0][None,...]
         s_xb_mean = self.get_average_class_code([xb])[0][None,...]
+        s_ta_mean = self.get_average_class_code([ta])[0][None,...]
 
-        s_xab_mean = self.get_average_class_code([ np.concatenate( [xa,xb], axis=0) ])[0][None,...]
-        
         lines = []
 
         for i in range(view_samples):
-            xarX = np.clip (self.G_convert  ([ xa[i:i+1], s_xa_mean  ] )[0][0] / 2 + 0.5, 0, 1)
-            xbrX = np.clip (self.G_convert  ([ xb[i:i+1], s_xb_mean  ] )[0][0] / 2 + 0.5, 0, 1)
-            xbtX = np.clip (self.G_convert  ([ xb[i:i+1], s_xa_mean  ] )[0][0] / 2 + 0.5, 0, 1)            
+            xaxa = np.clip (self.G_convert  ([ xa[i:i+1], s_xa_mean  ] )[0][0] / 2 + 0.5, 0, 1)
+            xbxb = np.clip (self.G_convert  ([ xb[i:i+1], s_xb_mean  ] )[0][0] / 2 + 0.5, 0, 1)
+            xbxa = np.clip (self.G_convert  ([ xb[i:i+1], s_xa_mean  ] )[0][0] / 2 + 0.5, 0, 1)            
 
-            taxaX = np.clip (self.G_convert  ([ ta[i:i+1], s_xa_mean  ] )[0][0] / 2 + 0.5, 0, 1)  
-            taxbX = np.clip (self.G_convert  ([ ta[i:i+1], s_xb_mean  ] )[0][0] / 2 + 0.5, 0, 1)    
+            tata = np.clip (self.G_convert  ([ ta[i:i+1], s_ta_mean  ] )[0][0] / 2 + 0.5, 0, 1)  
+            taxa = np.clip (self.G_convert  ([ ta[i:i+1], s_xa_mean  ] )[0][0] / 2 + 0.5, 0, 1)  
+            taxb = np.clip (self.G_convert  ([ ta[i:i+1], s_xb_mean  ] )[0][0] / 2 + 0.5, 0, 1)    
             
-            lines += [ np.concatenate( (xa[i] / 2 + 0.5, xarX, xb[i] / 2 + 0.5, xbrX, xbtX, ta[i]/2+0.5, taxaX, taxbX ), axis=1) ]
+            lines += [ np.concatenate( (xa[i] / 2 + 0.5, xaxa, xb[i] / 2 + 0.5, xbxb, xbxa, ta[i]/2+0.5, tata, taxa, taxb ), axis=1) ]
 
         r = np.concatenate ( lines, axis=0 )
-        return [ ('FUNIT', r ) ]
+        return [ ('DEV_FUNIT', r ) ]
 
     def predictor_func (self, face=None, dummy_predict=False):
         if dummy_predict:

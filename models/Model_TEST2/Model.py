@@ -277,7 +277,7 @@ class FUNITModel(ModelBase):
             lines += [ np.concatenate( (xa[i] / 2 + 0.5, xarX, xb[i] / 2 + 0.5, xbrX, xbtX), axis=1) ]
 
         r = np.concatenate ( lines, axis=0 )
-        return [ ('FUNIT', r ) ]
+        return [ ('TrueFace', r ) ]
 
     def predictor_func (self, face=None, dummy_predict=False):
         if dummy_predict:
