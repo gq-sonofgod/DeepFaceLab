@@ -218,7 +218,7 @@ class FUNITModel(ModelBase):
         ta  = generators_samples[2][0]
         tb  = generators_samples[3][0]
 
-        view_samples = min(2, xa.shape[0])
+        view_samples = min(4, xa.shape[0])
 
         lines_train = []
         lines_test = []
