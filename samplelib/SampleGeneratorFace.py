@@ -160,7 +160,7 @@ class SampleGeneratorFace(SampleGeneratorBase):
                             batches[i_sample_idx].append (idx)
                             
                         if self.person_id_mode:
-                            batches[i_person_id].append (sample.person_id)
+                            batches[i_person_id].append ( np.array([sample.person_id]) )
 
                         break
 
