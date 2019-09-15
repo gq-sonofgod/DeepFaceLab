@@ -137,8 +137,6 @@ class FUNITModel(ModelBase):
         if not self.is_first_run():
             self.load_weights_safe(self.get_model_filename_list())
         else:
-            """
-            todo
             initer = keras.initializers.glorot_normal()
             for model, _ in self.get_model_filename_list():
                 if type(model) == keras.models.Model:
@@ -146,14 +144,6 @@ class FUNITModel(ModelBase):
                         if type(layer) == keras.layers.Conv2D or type(layer) == keras.layers.Dense:
                             w = layer.weights[0]
                             K.set_value( w, K.get_value(initer(K.int_shape(w)))  )
-            """
-
-
-        #import code
-        #code.interact(local=dict(globals(), **locals()))
-
-
-
 
         if self.is_training_mode:
             t = SampleProcessor.Types
