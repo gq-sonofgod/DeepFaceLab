@@ -282,9 +282,9 @@ class FUNIT(object):
                     x = Conv2D (4* (nf // 2**(i+1)), kernel_size=3, strides=1, padding='same')(x)
                     x = SubpixelUpscaler()(x)
                 else:
-                    x = UpSampling2D()(x)
+                    x = UpSampling2D()(x)                    
+                    x = Conv2D (nf // 2**(i+1), kernel_size=5, strides=1, padding='same')(x)
                     
-                x = Conv2D (nf // 2**(i+1), kernel_size=5, strides=1, padding='same')(x)
                 x = InstanceNormalization()(x)
                 x = ReLU()(x)
 
