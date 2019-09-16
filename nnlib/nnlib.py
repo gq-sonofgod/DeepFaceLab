@@ -97,6 +97,7 @@ PixelShuffler = nnlib.PixelShuffler
 SubpixelUpscaler = nnlib.SubpixelUpscaler
 Scale = nnlib.Scale
 BlurPool = nnlib.BlurPool
+FUNITAdain = nnlib.FUNITAdain
 SelfAttention = nnlib.SelfAttention
 
 CAInitializerMP = nnlib.CAInitializerMP
@@ -512,8 +513,89 @@ NLayerDiscriminator = nnlib.NLayerDiscriminator
                 return x
 
         nnlib.BlurPool = BlurPool
+        
+        class FUNITAdain(KL.Layer):
+            """
+            differents from NVLabs/FUNIT:
+            I moved two dense blocks inside this layer, 
+                so we don't need to slice outter MLP block and assign weights every call, just pass MLP inside.
+                also size of dense blocks is calculated automatically       
+            Due to moving_mean and moving_variance are always static in original repo, I removed it,
+                therefore we are actually training w*gamma + beta
+            """
+            def __init__(self, axis=-1, epsilon=1e-5, momentum=0.99, **kwargs):
+                self.axis = axis
+                self.epsilon = epsilon
+                self.momentum = momentum
+                super(FUNITAdain, self).__init__(**kwargs)
 
+            def build(self, input_shape):
+                self.input_spec = None                 
+                x, mlp = input_shape
+                units = x[self.axis]
+                
+                #self.moving_mean = self.add_weight(shape=(units,), name='moving_mean', initializer='zeros',trainable=False)
+                #self.moving_variance = self.add_weight(shape=(units,), name='moving_variance',initializer='ones', trainable=False)
+                
+                self.kernel1 = self.add_weight(shape=(units, units), initializer='he_normal', name='kernel1')                                      
+                self.bias1 = self.add_weight(shape=(units,), initializer='zeros', name='bias1')
+                self.kernel2 = self.add_weight(shape=(units, units), initializer='he_normal', name='kernel2')                                      
+                self.bias2 = self.add_weight(shape=(units,), initializer='zeros', name='bias2')    
 
+                self.built = True
+
+            def call(self, inputs, training=None):
+                x, mlp = inputs
+                
+                gamma = K.dot(mlp, self.kernel1)        
+                gamma = K.bias_add(gamma, self.bias1, data_format='channels_last')
+                
+                beta = K.dot(mlp, self.kernel2)        
+                beta = K.bias_add(beta, self.bias2, data_format='channels_last')
+
+                input_shape = K.int_shape(x)
+                
+                reduction_axes = list(range(len(input_shape)))
+                del reduction_axes[self.axis]
+                broadcast_shape = [1] * len(input_shape)
+                broadcast_shape[self.axis] = input_shape[self.axis]
+                
+                normed = x# (x - K.reshape(self.moving_mean,broadcast_shape) ) / ( K.sqrt( K.reshape(self.moving_variance,broadcast_shape)) +self.epsilon)
+                normed *= K.reshape(gamma,[-1]+broadcast_shape[1:] )
+                normed += K.reshape(beta, [-1]+broadcast_shape[1:] )
+
+                #mean = K.mean(x, axis=reduction_axes)
+                #variance = K.var(x, axis=reduction_axes)
+                #sample_size = K.prod([ K.shape(x)[axis] for axis in reduction_axes ])
+                #sample_size = K.cast(sample_size, dtype=K.dtype(x))
+                #variance *= sample_size / (sample_size - (1.0 + self.epsilon))
+
+                #self.add_update([K.moving_average_update(self.moving_mean, mean, self.momentum),
+                #                 K.moving_average_update(self.moving_variance, variance, self.momentum)], None)
+                return normed    
+            
+                #instance norm version, unused
+                
+                #del reduction_axes[0]    
+                broadcast_shape = [1] * len(input_shape)
+                broadcast_shape[self.axis] = input_shape[self.axis]                
+                mean = K.mean(x, reduction_axes, keepdims=True)
+                stddev = K.std(x, reduction_axes, keepdims=True) + self.epsilon
+                normed = (x - mean) / stddev
+                normed *= K.reshape(gamma,[-1]+broadcast_shape[1:] )
+                normed += K.reshape(beta, [-1]+broadcast_shape[1:] )
+                return normed
+                
+            def get_config(self):
+                config = {'axis': self.axis, 'epsilon': self.epsilon }
+
+                base_config = super(FUNITAdain, self).get_config()
+                return dict(list(base_config.items()) + list(config.items()))
+
+            def compute_output_shape(self, input_shape):
+                return input_shape
+        nnlib.FUNITAdain = FUNITAdain
+        
         class Scale(KL.Layer):
             """
             GAN Custom Scal Layer

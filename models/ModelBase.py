@@ -23,7 +23,7 @@ You can implement your own model. Check examples.
 class ModelBase(object):
 
 
-    def __init__(self, model_path, training_data_src_path=None, training_data_dst_path=None, pretraining_data_path=None, debug = False, device_args = None,
+    def __init__(self, model_path, training_data_src_path=None, training_data_dst_path=None, pretraining_data_path=None, is_training=False, debug = False, device_args = None,
                  ask_enable_autobackup=True,
                  ask_write_preview_history=True,
                  ask_target_iter=True,
@@ -56,14 +56,8 @@ class ModelBase(object):
         self.training_data_dst_path = training_data_dst_path
         self.pretraining_data_path = pretraining_data_path
 
-        self.src_images_paths = None
-        self.dst_images_paths = None
-        self.src_yaw_images_paths = None
-        self.dst_yaw_images_paths = None
-        self.src_data_generator = None
-        self.dst_data_generator = None
         self.debug = debug
-        self.is_training_mode = (training_data_src_path is not None and training_data_dst_path is not None) #todo
+        self.is_training_mode = is_training
 
         self.iter = 0
         self.options = {}
