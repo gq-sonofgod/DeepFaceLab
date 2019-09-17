@@ -24,7 +24,7 @@ class FUNITModel(ModelBase):
     def onInitializeOptions(self, is_first_run, ask_override):
         default_face_type = 'f'
         if is_first_run:
-            self.options['resolution'] = io.input_int("Resolution ( 128,244 ?:help skip:128) : ", 128, [128,244])
+            self.options['resolution'] = io.input_int("Resolution ( 128,224 ?:help skip:128) : ", 128, [128,224])
         else:
             self.options['resolution'] = self.options.get('resolution', 128)
 
