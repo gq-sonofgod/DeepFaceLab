@@ -519,9 +519,7 @@ NLayerDiscriminator = nnlib.NLayerDiscriminator
             differents from NVLabs/FUNIT:
             I moved two dense blocks inside this layer, 
                 so we don't need to slice outter MLP block and assign weights every call, just pass MLP inside.
-                also size of dense blocks is calculated automatically       
-            Due to moving_mean and moving_variance are always static in original repo, I removed it,
-                therefore we are actually training w*gamma + beta
+                also size of dense blocks is calculated automatically 
             """
             def __init__(self, axis=-1, epsilon=1e-5, momentum=0.99, **kwargs):
                 self.axis = axis
@@ -533,10 +531,7 @@ NLayerDiscriminator = nnlib.NLayerDiscriminator
                 self.input_spec = None                 
                 x, mlp = input_shape
                 units = x[self.axis]
-                
-                #self.moving_mean = self.add_weight(shape=(units,), name='moving_mean', initializer='zeros',trainable=False)
-                #self.moving_variance = self.add_weight(shape=(units,), name='moving_variance',initializer='ones', trainable=False)
-                
+
                 self.kernel1 = self.add_weight(shape=(units, units), initializer='he_normal', name='kernel1')                                      
                 self.bias1 = self.add_weight(shape=(units,), initializer='zeros', name='bias1')
                 self.kernel2 = self.add_weight(shape=(units, units), initializer='he_normal', name='kernel2')                                      
@@ -557,14 +552,16 @@ NLayerDiscriminator = nnlib.NLayerDiscriminator
                 
                 reduction_axes = list(range(len(input_shape)))
                 del reduction_axes[self.axis]
-                broadcast_shape = [1] * len(input_shape)
-                broadcast_shape[self.axis] = input_shape[self.axis]
                 
-                normed = x# (x - K.reshape(self.moving_mean,broadcast_shape) ) / ( K.sqrt( K.reshape(self.moving_variance,broadcast_shape)) +self.epsilon)
-                normed *= K.reshape(gamma,[-1]+broadcast_shape[1:] )
-                normed += K.reshape(beta, [-1]+broadcast_shape[1:] )
-
+                #broadcast_shape = [1] * len(input_shape)
+                #broadcast_shape[self.axis] = input_shape[self.axis]                
+                #normed = x# (x - K.reshape(self.moving_mean,broadcast_shape) ) / ( K.sqrt( K.reshape(self.moving_variance,broadcast_shape)) +self.epsilon)
+                #normed *= K.reshape(gamma,[-1]+broadcast_shape[1:] )
+                #normed += K.reshape(beta, [-1]+broadcast_shape[1:] )
                 #mean = K.mean(x, axis=reduction_axes)
+                #self.moving_mean = self.add_weight(shape=(units,), name='moving_mean', initializer='zeros',trainable=False)
+                #self.moving_variance = self.add_weight(shape=(units,), name='moving_variance',initializer='ones', trainable=False)
+                
                 #variance = K.var(x, axis=reduction_axes)
                 #sample_size = K.prod([ K.shape(x)[axis] for axis in reduction_axes ])
                 #sample_size = K.cast(sample_size, dtype=K.dtype(x))
@@ -572,11 +569,9 @@ NLayerDiscriminator = nnlib.NLayerDiscriminator
 
                 #self.add_update([K.moving_average_update(self.moving_mean, mean, self.momentum),
                 #                 K.moving_average_update(self.moving_variance, variance, self.momentum)], None)
-                return normed    
+                #return normed    
             
-                #instance norm version, unused
-                
-                #del reduction_axes[0]    
+                del reduction_axes[0]    
                 broadcast_shape = [1] * len(input_shape)
                 broadcast_shape[self.axis] = input_shape[self.axis]                
                 mean = K.mean(x, reduction_axes, keepdims=True)
