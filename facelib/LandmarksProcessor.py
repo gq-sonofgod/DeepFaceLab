@@ -183,6 +183,55 @@ landmarks_68_3D = np.array( [
 [0.205322    , 31.408738    , -21.903670  ],
 [-7.198266   , 30.844876    , -20.328022  ] ], dtype=np.float32)
 
+def convert_98_to_68(lmrks):
+    #jaw
+    result = [ lmrks[0] ]
+    for i in range(2,16,2):
+        result += [ ( lmrks[i] + (lmrks[i-1]+lmrks[i+1])/2 ) / 2  ]   
+    result += [ lmrks[16] ]    
+    for i in range(18,32,2):
+        result += [ ( lmrks[i] + (lmrks[i-1]+lmrks[i+1])/2 ) / 2  ] 
+    result += [ lmrks[32] ]
+    
+    #eyebrows averaging
+    result += [ lmrks[33],
+                (lmrks[34]+lmrks[41])/2,
+                (lmrks[35]+lmrks[40])/2,
+                (lmrks[36]+lmrks[39])/2,
+                (lmrks[37]+lmrks[38])/2,
+              ]
+    
+    result += [ (lmrks[42]+lmrks[50])/2,
+                (lmrks[43]+lmrks[49])/2,
+                (lmrks[44]+lmrks[48])/2,
+                (lmrks[45]+lmrks[47])/2,                
+                lmrks[46]
+              ]
+              
+    #nose
+    result += list ( lmrks[51:60] )
+    
+    #left eye (from our view)    
+    result += [ lmrks[60],
+                lmrks[61],
+                lmrks[63],
+                lmrks[64],
+                lmrks[65],
+                lmrks[67] ]
+
+    #right eye 
+    result += [ lmrks[68],
+                lmrks[69],
+                lmrks[71],
+                lmrks[72],
+                lmrks[73],
+                lmrks[75] ]
+                
+    #mouth
+    result += list ( lmrks[76:96] )
+
+    return np.concatenate (result).reshape ( (68,2) )
+
 def transform_points(points, mat, invert=False):
     if invert:
         mat = cv2.invertAffineTransform (mat)

@@ -51,10 +51,11 @@ KL = keras.layers
 Input = KL.Input
 
 Dense = KL.Dense
-Conv2D = nnlib.Conv2D
-Conv2DTranspose = nnlib.Conv2DTranspose
+Conv2D = KL.Conv2D
+Conv2DTranspose = KL.Conv2DTranspose
 EqualConv2D = nnlib.EqualConv2D
 SeparableConv2D = KL.SeparableConv2D
+DepthwiseConv2D = KL.DepthwiseConv2D
 MaxPooling2D = KL.MaxPooling2D
 AveragePooling2D = KL.AveragePooling2D
 GlobalAveragePooling2D = KL.GlobalAveragePooling2D

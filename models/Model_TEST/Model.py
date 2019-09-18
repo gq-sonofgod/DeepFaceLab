@@ -140,11 +140,11 @@ class TrueFaceModel(ModelBase):
         for i in range(view_samples):
             xaxa, = self.model.convert  ([ xa[i:i+1], s_xa_mean  ] )
             xbxb, = self.model.convert  ([ xb[i:i+1], s_xb_mean  ] )
-            xbxa, = self.model.convert  ([ xb[i:i+1], s_xa_mean  ] )         
+            xaxb, = self.model.convert  ([ xa[i:i+1], s_xb_mean  ] )         
             
-            xa_i,xb_i,xaxa,xbxb,xbxa = [ np.clip(x/2+0.5, 0, 1) for x in [xa[i], xb[i], xaxa[0],xbxb[0],xbxa[0]] ]
+            xa_i,xb_i,xaxa,xbxb,xaxb = [ np.clip(x/2+0.5, 0, 1) for x in [xa[i], xb[i], xaxa[0],xbxb[0],xaxb[0]] ]
 
-            lines += [ np.concatenate( (xa_i, xaxa, xb_i, xbxb, xbxa), axis=1) ]
+            lines += [ np.concatenate( (xa_i, xaxa, xb_i, xbxb, xaxb), axis=1) ]
 
         r = np.concatenate ( lines, axis=0 )
         return [ ('AVATAR2', r ) ]
