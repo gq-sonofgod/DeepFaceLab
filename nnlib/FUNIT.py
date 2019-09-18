@@ -36,6 +36,7 @@ class FUNIT(object):
 
         self.batch_size = batch_size
         bgr_shape = (None, None, 3)
+        mask_shape = (None, None, 1)
         label_shape = (1,)
         
         self.enc_content = modelify ( FUNIT.ContentEncoderFlow(downs=encoder_downs, nf=encoder_nf, n_res_blks=encoder_res_blk) ) ( Input(bgr_shape) )
@@ -124,7 +125,7 @@ class FUNIT(object):
         G_c_rec = K.mean(K.abs(K.mean(d_xr_feat, axis=[1,2]) - K.mean(d_xa_feat, axis=[1,2]))) #* 1.0
         G_m_rec = K.mean(K.abs(K.mean(d_xt_feat, axis=[1,2]) - K.mean(d_xb_feat, axis=[1,2]))) #* 1.0
         G_x_rec = 0.1 * K.mean(K.abs(xr-xa)) 
-        
+
         G_loss = (-d_xr_la-d_xt_lb)*0.5 + G_x_rec + G_c_rec + G_m_rec
         G_acc = (d_xr_la_acc+d_xt_lb_acc)*0.5 
         
@@ -142,10 +143,12 @@ class FUNIT(object):
         D_weights = self.dis.trainable_weights
 
         self.G_train = K.function ([xa, la, xb, lb],[G_acc], self.G_opt.get_updates(G_loss, G_weights) )
+            
         self.D_train = K.function ([xa, la, xb, lb],[D_acc], self.D_opt.get_updates(D_loss, D_weights) )
         self.get_average_class_code = K.function ([xa],[s_xa_mean])
+        
         self.G_convert = K.function  ([xa,s_xa_one],[xr_one])
-
+            
         if initialize_weights:
             #gather weights from layers for initialization
             weights_list = []
@@ -191,8 +194,8 @@ class FUNIT(object):
     #    self.model.save_weights (str(self.weights_path))
 
     def train(self, xa,la,xb,lb):
-        D_acc, = self.D_train ([xa,la,xb,lb])
-        G_acc, = self.G_train ([xa,la,xb,lb])
+        D_acc, = self.D_train ([xa,la,xb,lb])        
+        G_acc, = self.G_train ([xa,la,xb,lb])        
         return 1.0-G_acc, 1.0-D_acc
 
     def get_average_class_code(self, *args, **kwargs):
@@ -287,8 +290,9 @@ class FUNIT(object):
                     
                 x = InstanceNormalization()(x)
                 x = ReLU()(x)
-
-            return Conv2D (3, kernel_size=7, strides=1, padding='same', activation='tanh')(x)
+                
+            rgb = Conv2D (3, kernel_size=7, strides=1, padding='same', activation='tanh')(x)
+            return rgb
 
         return func
         
