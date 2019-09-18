@@ -151,6 +151,7 @@ class SAEModel(ModelBase):
                     return func
 
                 def dec_flow(output_nc, d_ch_dims, add_residual_blocks=True):
+                    dims = output_nc * d_ch_dims
                     def ResidualBlock(dim):
                         def func(inp):
                             x = Conv2D(dim, kernel_size=3, padding='same')(inp)
@@ -161,8 +162,7 @@ class SAEModel(ModelBase):
                             return x
                         return func
 
-                    def func(x):
-                        dims = output_nc * d_ch_dims
+                    def func(x):                        
                         x = upscale(dims*8)(x)
                         
                         if add_residual_blocks:
@@ -232,7 +232,7 @@ class SAEModel(ModelBase):
                 mask_shape = (resolution, resolution, 1)
 
                 e_dims = output_nc*e_ch_dims
-                d_dims = output_nc*d_ch_dims
+                
                 lowest_dense_res = resolution // 16
 
                 def upscale (dim):
@@ -259,7 +259,8 @@ class SAEModel(ModelBase):
                         return x
                     return func
 
-                def dec_flow(output_nc, d_dims):
+                def dec_flow(output_nc, d_ch_dims, add_residual_blocks=True):
+                    d_dims = output_nc*d_ch_dims
                     def ResidualBlock(dim):
                         def func(inp):
                             x = Conv2D(dim, kernel_size=3, padding='same')(inp)
@@ -272,16 +273,22 @@ class SAEModel(ModelBase):
 
                     def func(x):
                         x = upscale(d_dims*8)(x)
-                        x = ResidualBlock(d_dims*8)(x)
-                        x = ResidualBlock(d_dims*8)(x)
+                        
+                        if add_residual_blocks:
+                            x = ResidualBlock(d_dims*8)(x)
+                            x = ResidualBlock(d_dims*8)(x)
 
                         x = upscale(d_dims*4)(x)
-                        x = ResidualBlock(d_dims*4)(x)
-                        x = ResidualBlock(d_dims*4)(x)
+                        
+                        if add_residual_blocks:
+                            x = ResidualBlock(d_dims*4)(x)
+                            x = ResidualBlock(d_dims*4)(x)
 
                         x = upscale(d_dims*2)(x)
-                        x = ResidualBlock(d_dims*2)(x)
-                        x = ResidualBlock(d_dims*2)(x)
+                        
+                        if add_residual_blocks:
+                            x = ResidualBlock(d_dims*2)(x)
+                            x = ResidualBlock(d_dims*2)(x)
 
                         return Conv2D(output_nc, kernel_size=5, padding='same', activation='sigmoid')(x)
                     return func
@@ -293,10 +300,10 @@ class SAEModel(ModelBase):
                 self.inter_AB = modelify(inter_flow(lowest_dense_res, ae_dims)) ( Input(sh) )
 
                 sh = np.array(K.int_shape( self.inter_B.outputs[0] )[1:])*(1,1,2)
-                self.decoder = modelify(dec_flow(output_nc, d_dims)) ( Input(sh) )
+                self.decoder = modelify(dec_flow(output_nc, d_ch_dims)) ( Input(sh) )
 
                 if learn_mask:
-                    self.decoderm = modelify(dec_flow(1, d_dims)) ( Input(sh) )
+                    self.decoderm = modelify(dec_flow(1, d_ch_dims, add_residual_blocks=False)) ( Input(sh) )
 
                 self.src_dst_trainable_weights = self.encoder.trainable_weights + self.inter_B.trainable_weights + self.inter_AB.trainable_weights + self.decoder.trainable_weights
 

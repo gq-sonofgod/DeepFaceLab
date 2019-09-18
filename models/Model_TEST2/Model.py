@@ -60,15 +60,16 @@ class TrueFaceModel(ModelBase):
         face_type = t.FACE_TYPE_FULL if self.options['face_type'] == 'f' else t.FACE_TYPE_HALF
         if self.is_training_mode:           
 
-            output_sample_types=[ {'types': (t.IMG_TRANSFORMED, face_type, t.MODE_BGR), 'resolution':resolution, 'normalize_tanh':True} ]
+            output_sample_types=[ {'types': (t.IMG_TRANSFORMED, face_type, t.MODE_BGR), 'resolution':resolution, 'normalize_tanh':True},
+                                 ]
 
             self.set_training_data_generators ([
                     SampleGeneratorFace(self.training_data_src_path, debug=self.is_debug(), batch_size=self.batch_size,
-                        sample_process_options=SampleProcessor.Options(random_flip=self.random_flip),
+                        sample_process_options=SampleProcessor.Options(random_flip=True),
                         output_sample_types=output_sample_types ),
 
                     SampleGeneratorFace(self.training_data_dst_path, debug=self.is_debug(), batch_size=self.batch_size,
-                        sample_process_options=SampleProcessor.Options(random_flip=self.random_flip),
+                        sample_process_options=SampleProcessor.Options(random_flip=True),
                         output_sample_types=output_sample_types )
                    ])
         else:
@@ -101,7 +102,7 @@ class TrueFaceModel(ModelBase):
         src, = generators_samples[0]
         dst, = generators_samples[1]
 
-        xa = np.concatenate ( [src[0:lbs], dst[0:lbs]], axis=0 )
+        xa  = np.concatenate ( [src[0:lbs], dst[0:lbs]], axis=0 )
 
         la = np.concatenate ( [ np.array ([0]*lbs, np.int32),
                                 np.array ([1]*lbs, np.int32) ] )
@@ -113,7 +114,7 @@ class TrueFaceModel(ModelBase):
 
         rnd_list = np.arange(lbs*2)
         np.random.shuffle(rnd_list)
-        xa = xa[rnd_list,...]
+        xa  = xa[rnd_list,...]
         la = la[rnd_list,...]
         la = la[...,None]
 
@@ -143,11 +144,13 @@ class TrueFaceModel(ModelBase):
         lines = []
 
         for i in range(view_samples):
-            xarX = np.clip (self.model.convert  ([ xa[i:i+1], s_xa_mean  ] )[0][0] / 2 + 0.5, 0, 1)
-            xbrX = np.clip (self.model.convert  ([ xb[i:i+1], s_xb_mean  ] )[0][0] / 2 + 0.5, 0, 1)
-            xbtX = np.clip (self.model.convert  ([ xb[i:i+1], s_xa_mean  ] )[0][0] / 2 + 0.5, 0, 1)            
+            xaxa, = self.model.convert  ([ xa[i:i+1], s_xa_mean  ] )
+            xbxb, = self.model.convert  ([ xb[i:i+1], s_xb_mean  ] )
+            xbxa, = self.model.convert  ([ xb[i:i+1], s_xa_mean  ] )         
+            
+            xa_i,xb_i,xaxa,xbxb,xbxa = [ np.clip(x/2+0.5, 0, 1) for x in [xa[i], xb[i], xaxa[0],xbxb[0],xbxa[0]] ]
 
-            lines += [ np.concatenate( (xa[i] / 2 + 0.5, xarX, xb[i] / 2 + 0.5, xbrX, xbtX), axis=1) ]
+            lines += [ np.concatenate( (xa_i, xaxa, xb_i, xbxb, xbxa), axis=1) ]
 
         r = np.concatenate ( lines, axis=0 )
         return [ ('TrueFace', r ) ]
