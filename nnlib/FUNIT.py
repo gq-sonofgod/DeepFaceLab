@@ -142,9 +142,9 @@ class FUNIT(object):
 
         D_weights = self.dis.trainable_weights
 
-        self.G_train = K.function ([xa, la, xb, lb],[G_acc], self.G_opt.get_updates(G_loss, G_weights) )
+        self.G_train = K.function ([xa, la, xb, lb],[G_loss], self.G_opt.get_updates(G_loss, G_weights) )
             
-        self.D_train = K.function ([xa, la, xb, lb],[D_acc], self.D_opt.get_updates(D_loss, D_weights) )
+        self.D_train = K.function ([xa, la, xb, lb],[D_loss], self.D_opt.get_updates(D_loss, D_weights) )
         self.get_average_class_code = K.function ([xa],[s_xa_mean])
         
         self.G_convert = K.function  ([xa,s_xa_one],[xr_one])
@@ -194,9 +194,9 @@ class FUNIT(object):
     #    self.model.save_weights (str(self.weights_path))
 
     def train(self, xa,la,xb,lb):
-        D_acc, = self.D_train ([xa,la,xb,lb])        
-        G_acc, = self.G_train ([xa,la,xb,lb])        
-        return 1.0-G_acc, 1.0-D_acc
+        D_loss, = self.D_train ([xa,la,xb,lb])        
+        G_loss, = self.G_train ([xa,la,xb,lb])        
+        return G_loss, D_loss
 
     def get_average_class_code(self, *args, **kwargs):
         return self.get_average_class_code(*args, **kwargs)
